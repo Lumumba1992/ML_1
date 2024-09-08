@@ -1,0 +1,305 @@
+---
+title: Modeling and Predicting the Occurrence of Diabetes using Machine Learning Algorithm
+  for Classification
+author: ''
+date: "`r Sys.Date()`"
+output:
+  word_document: default
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, comment = NA, warning = FALSE, message = FALSE,
+                      fig.height = 5, fig.width = 7)
+```
+
+## Results 
+### Load the Required Libraries
+```{r echo=FALSE}
+library(ISLR2)
+library(MASS)
+library(caret)
+library(splines)
+library(pROC)
+library(rattle)
+library(recipes)
+library(lava)
+library(sjmisc)
+library(igraph)
+library(e1071)
+library(hardhat)
+library(ipred)
+library(caret)
+library(sjPlot)
+library(nnet)
+library(wakefield)
+library(kknn)
+library(dplyr)
+library(nnet)
+library(caTools)
+library(ROCR)
+library(stargazer)
+library(dplyr)
+library(nnet)
+library(caTools)
+library(ROCR)
+library(stargazer)
+library(ISLR)
+library(ISLR2)
+library(MASS)
+library(splines)
+library(splines2)
+library(pROC)
+library(ISLR)
+library(ISLR2)
+library(MASS)
+library(splines)
+library(splines2)
+library(pROC)
+library(randomForest)
+library(rpart)
+library(rpart.plot)
+library(rattle)
+library(ISLR2)
+library(MASS)
+library(splines)
+library(pROC)
+library(rattle)
+library(rpart)
+library(party)
+library(partykit)
+library(ggplot2)
+library(tune)
+library(TunePareto)
+library(ISLR2)
+library(MASS)
+library(caret)
+library(splines)
+library(pROC)
+library(rattle)
+library(ggplot2)
+library(devtools)
+library(predict3d)
+library(psych)
+library(dplyr)
+library(gtsummary)
+library(DescTools)
+library(nortest) 
+library(lmtest)
+library(sandwich)
+library(sjmisc)
+library(ggplot2)
+library(stargazer)
+```
+
+### Load the Data
+```{r}
+diabetes_data <- read.csv("diabetes_prediction_dataset.csv")
+attach(diabetes_data)
+head(diabetes_data,5)
+```
+
+### Summary Statistics
+```{r}
+options(scipen = 999)
+knitr::kable(
+  describeBy(diabetes_data[c(-1,-5)]) %>% round(2) 
+)
+```
+
+
+# Model Estimation
+## Model One: Classification and Regression Tree (CART) Model
+```{r}
+diabetes_data$gender <- as.factor(diabetes_data$gender)
+diabetes_data$smoking_history <- as.factor(diabetes_data$smoking_history)
+diabetes_data$diabetes <- factor(diabetes_data$diabetes, levels = c(0,1),
+                                 labels = c("No", "Yes"))
+head(diabetes_data,10)
+```
+
+### Take a sample of 300 observations for easier code execusion
+```{r}
+set.seed(1234)
+sample_size <- 300
+random_indices <- sample(1:nrow(diabetes_data), size = sample_size, replace = FALSE)
+sample <- diabetes_data[random_indices, ]
+head(sample,10)
+```
+
+```{r}
+set.seed(1234)
+train_model <- trainControl(method = "repeatedcv", number = 5, repeats=10)
+
+model.cart2 <- train( diabetes ~ gender + age + hypertension + heart_disease + smoking_history + bmi + HbA1c_level + blood_glucose_level,
+  data = sample,
+  method = "rpart",
+  trControl = train_model)
+```
+
+### Model Summary
+```{r}
+model.cart2
+```
+
+### Confusion Matrix
+```{r}
+confusionMatrix(predict(model.cart2, sample), 
+                reference=sample$diabetes, positive="Yes")
+```
+
+
+### Variable Importance
+```{r}
+varImp(model.cart2)
+```
+
+### Plot the Variable Importance
+```{r}
+plot(varImp(model.cart2))
+```
+
+
+## Model Two: Random Forest
+```{r}
+set.seed(1234)
+model.rf2 <- train(
+ diabetes ~ gender + age + hypertension + heart_disease + smoking_history + bmi + HbA1c_level + blood_glucose_level,
+  data = sample,
+  method = "rf",
+  trControl = train_model)
+model.rf2
+```
+
+
+### Confusion Matrix
+```{r}
+confusionMatrix(predict(model.rf2, sample), 
+                reference=sample$diabetes, positive="Yes")
+```
+
+
+
+### Obtain variable importance
+```{r}
+varImp(model.rf2)
+```
+
+```{r}
+plot(varImp(model.rf2), main = "Variable Importance for the Random Forest Model")
+```
+
+## Model Three: k-Nearest Neighbors
+```{r}
+set.seed(1234)
+trControl <- trainControl(method = "repeatedcv",number = 5,repeats = 10)
+model.knn2 <- train(diabetes ~ gender + age + hypertension + heart_disease + smoking_history + bmi + HbA1c_level + blood_glucose_level,
+  data = sample,
+  method = "knn",
+  tuneLength = 5,
+  trControl = trControl,
+  preProc = c("center", "scale")
+)
+```
+
+### View the Final Model
+```{r}
+model.knn2
+```
+
+### Classification Accuracy
+```{r}
+confusionMatrix(predict(model.knn2, sample), 
+                reference=sample$diabetes, positive="Yes")
+```
+
+
+## Variable Importance
+```{r}
+varImp(model.knn2)
+```
+
+
+```{r}
+plot(varImp(model.knn2), main = "Variable Importance for the K-NN Model")
+```
+
+## Model Four: Naive Bayes
+```{r warning=FALSE}
+set.seed(1234)
+trControl <- trainControl(method = "repeatedcv",number = 5,repeats = 10)
+model.nb2 <- train(diabetes ~ gender+ age + hypertension + heart_disease + smoking_history + bmi + HbA1c_level + blood_glucose_level,
+  data = sample,
+  method = "naive_bayes",
+  tuneLength = 5,
+  trControl = trControl,
+  preProc = c("center", "scale")
+)
+```
+
+### View the Model
+```{r}
+model.nb2
+```
+
+### Prediction and Classification Accuracy
+```{r}
+confusionMatrix(predict(model.nb2, sample), 
+                reference=sample$diabetes, positive="Yes")
+```
+
+
+### Variable Importance
+```{r}
+varImp(model.nb2)
+```
+
+
+```{r}
+plot(varImp(model.nb2), main = "Variable for the Naive Bayes Model")
+```
+
+
+
+
+## Model Five: Support Vector Machine (SVM)
+```{r}
+set.seed(1234)
+trControl <- trainControl(method = "repeatedcv",number = 5,repeats = 10)
+model.svm2 <- train(diabetes ~ gender + age + hypertension + heart_disease + smoking_history + bmi + HbA1c_level + blood_glucose_level,
+  data = sample,
+  method = "svmLinear",
+  tuneLength = 5,
+  trControl = trControl,
+  preProc = c("center", "scale")
+)
+```
+
+### View the Model
+```{r}
+model.svm2
+```
+
+### Prediction and Classification Accuracy
+```{r}
+confusionMatrix(predict(model.svm2, sample), 
+                reference=sample$diabetes, positive="Yes")
+```
+
+
+### Variable Importance
+```{r}
+varImp(model.svm2)
+plot(varImp(model.svm2), main = "Variable Importance for Support Vector Machine")
+```
+
+
+\newpage
+## Reference
+Mustafa, M. (2023). Diabetes prediction dataset. Kaggle.com. https://www.kaggle.com/datasets/iammustafatz/diabetes-prediction-dataset
+
+
+
+
+

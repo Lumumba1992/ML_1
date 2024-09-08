@@ -1,0 +1,344 @@
+---
+title: 'Modeling and Predicting Wine Quality: Machine Learning Approach'
+author: ""
+date: "`r Sys.Date()`"
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, comment = NA, warning = FALSE, message = FALSE,
+                      fig.height = 5, fig.width = 7)
+```
+
+\newpage
+# Modeling and predicting diabetes
+## Introduction
+The quality of the wine is influenced by a number of factors including but not limited to sensory characteristics and chemical composition. It is in the interest of the manufacture to determine what affects the quality of wine. In this study, we employ machine learning method to model and predict quality of the wine based on the physicochemical attributes. The data set used in this study is obtained from Kaggle website with variable including acidity, volatilize acidity, citric acid, residual sugar, chloride, free sulfuric dioxide, total sulfuric dioxide, density, pH, sulphates and alcohol content. The dependent variable for the study is the quality of the wine. 
+
+The application of machine learning in this study provides power tools analyzing and modeling wine quality. By doing so, this paper aims at evaluating the relationship between chemical composition and their effect on the quality of the wine. This algorithm will help determine the most appropriate machine learning technique that can help classify and model wine according their respective quality categories. In this study, wine quality will be categorized into three main categories, that is, "bad", "average", and "good". 
+
+## Objectives
+This study is guided by the following objectives
+* To evaluate the performance of various machine learning algorithms, which include Naive Bayes, k-Nearest Neighbors (kNN), Hierachical clustering and K-Means Clustering in modeling classification of wine quality
+
+* Assessing the effectiveness of the developed models in classifying and predicting the quality of the wine.
+
+
+## Methodology
+This study employed the use of secondary data (Red Wine Data) obtained from Kaggle website. (http://archive.ics.uci.edu/ml/machine-learning-databases/wine-quality/winequality-white.csv) The dataset used comprised the chemical characteristics of the wine and the quality of the wine.
+The machine learning applied in this study include the following; 
+
+* Classification and Regression Tree (CART): CART is a decision tree algorithm that recursively splits the data into subsets based on the value of predictor variables. At each step, it chooses the variable that best splits the data, resulting in a tree-like structure where the leaves represent the predicted outcome.
+
+* Random Forest: Random Forest is an ensemble machine learning method constructed from various decision trees to create one classification and prediction algorithm. 
+
+* k-Nearest Neighbors: This algorithm is a non-parametric machine learning algorithm thta classifies an individual based on the k-Nearest neighbors. 
+
+* Support Vector Machine (SVM): SVM is a supervised learning algorithm used for classification and regression tasks. It works by finding the hyper-plane that best separates the classes in the feature space. Using this algorithm, three kernels options are always specified, that is Sigmoid, Linear and Polynomial, however, in many instance, linear kernel has always outperformed the sigmoid and polynomial kernel. 
+
+* Naive Bayes Classifier: This is based on Bayes' theorem to classify individual, holding the assumption that feature are independent
+
+
+## Results
+### Load the Required Libraries
+```{r}
+library(ISLR2)
+library(MASS)
+library(caret)
+library(splines)
+library(pROC)
+library(rattle)
+library(recipes)
+library(lava)
+library(sjmisc)
+library(igraph)
+library(e1071)
+library(hardhat)
+library(ipred)
+library(caret)
+library(sjPlot)
+library(nnet)
+library(wakefield)
+library(kknn)
+library(dplyr)
+library(nnet)
+library(caTools)
+library(ROCR)
+library(stargazer)
+library(dplyr)
+library(nnet)
+library(caTools)
+library(ROCR)
+library(stargazer)
+library(ISLR)
+library(ISLR2)
+library(MASS)
+library(splines)
+library(splines2)
+library(pROC)
+library(ISLR)
+library(ISLR2)
+library(MASS)
+library(splines)
+library(splines2)
+library(pROC)
+library(randomForest)
+library(rpart)
+library(rpart.plot)
+library(rattle)
+library(ISLR2)
+library(MASS)
+library(splines)
+library(pROC)
+library(rattle)
+library(rpart)
+library(party)
+library(partykit)
+library(ggplot2)
+library(tune)
+library(TunePareto)
+library(ISLR2)
+library(MASS)
+library(caret)
+library(splines)
+library(pROC)
+library(rattle)
+library(ggplot2)
+library(devtools)
+library(predict3d)
+library(psych)
+library(dplyr)
+library(gtsummary)
+library(DescTools)
+library(nortest) 
+library(lmtest)
+library(sandwich)
+library(sjmisc)
+library(ggplot2)
+library(stargazer)
+```
+
+### Load the Data
+```{r}
+winequality <- read.csv("winequality-red.csv")
+attach(winequality)
+head(winequality,5)
+```
+
+### Summary Statistics
+```{r}
+options(scipen = 999)
+knitr::kable(
+  describeBy(winequality[]) %>% round(2) 
+)
+```
+
+The mean fixed acidity was 6.85 (SD = 0.84), volatile acidity was 0.28 (SD = 0.10), citric acid was 0.33 (SD = 0.12), residual sugar was 6.39 (SD = 5.07), chlorides were 0.05 (SD = 0.02), free sulfur dioxide was 35.31 (SD = 17.01), total sulfur dioxide was 138.36 (SD = 42.50), density was 0.99 (SD = 0.00), pH was 3.19 (SD = 0.15), sulphates were 0.49 (SD = 0.11), alcohol content was 10.51 (SD = 1.23), and wine quality was 5.88 (SD = 0.89).
+
+### Label the Level the Dependent Variable
+```{r}
+#Transforming Quality from an Integer to a Factor
+winequality$quality <- factor(winequality$quality, ordered = T)
+
+#Creating a new Factored Variable called 'Rating'
+
+winequality$rating <- ifelse(winequality$quality < 5, 'bad', ifelse(
+  winequality$quality < 7, 'average', 'good'))
+
+winequality$rating <- ordered(winequality$rating,
+                       levels = c('bad', 'average', 'good'))
+head(winequality,5)
+```
+
+# Model Estimation
+## Create a Sample of 300 Observations
+```{r}
+n <- 300
+random_indices <- sample(1:nrow(winequality), size = n, replace = FALSE)
+winequality <- winequality[random_indices, ]
+head(winequality,10)
+```
+
+```{r}
+train_model <- trainControl(method = "repeatedcv", number = 5, repeats=10)
+
+model.cart <- train(rating ~ fixed.acidity+volatile.acidity+citric.acid+residual.sugar+chlorides+free.sulfur.dioxide+total.sulfur.dioxide+density+pH+sulphates+alcohol,
+  data = winequality,
+  method = "rpart",
+  trControl = train_model)
+```
+
+### Model Summary
+```{r}
+model.cart
+```
+
+### Confusion Matrix
+```{r}
+confusionMatrix(predict(model.cart, winequality), 
+                reference=winequality$rating, positive="good")
+```
+
+The classification and regression model estimated shows that the model has an accuracy of approximately 75.33%. This shows that the model correctly classifies the wine qualities into their respective qualities (bad, average and good), 75.33% of the time. 
+
+### Variable Importance
+```{r}
+varImp(model.cart)
+```
+
+The results shows that the most important and significant variable in the classification and regression trees model developed are alcohol, chlorides, density, total sulfuric dioxide and residual sugar ans so on. From the results, alcohol has 100% importance, followed by density with 80.67%, chlorides with 53.96% and total sulfuric dioxide with 40.13%%. Consider the plot below to visualize the results above. 
+
+### Plot the Variable Importance
+```{r}
+plot(varImp(model.cart), main  = "Variable Importance Plot for Classification and Regression Tree 
+     (CART) Model")
+```
+
+### Plot the Classification Model
+```{r}
+fancyRpartPlot(model.cart$finalModel)
+```
+
+## Model Two: Random Forest
+```{r}
+model.rf <- train(
+ rating ~ fixed.acidity+volatile.acidity+citric.acid+residual.sugar+chlorides+free.sulfur.dioxide+total.sulfur.dioxide+density+pH+sulphates+alcohol,
+  data = winequality,
+  method = "rf",
+  trControl = train_model)
+model.rf
+```
+
+### Obtain the Confusion Matrix
+```{r}
+confusionMatrix(predict(model.rf, winequality), 
+                reference=winequality$rating, positive="good")
+```
+
+The random forest model developed shows that the model has an accuracy of approximately 100%. This shows that the model classifies wine qualities correctly into their respective wine qualities as either bad, average, or good, 100% of the time. 
+
+### Obtain variable importance
+```{r}
+varImp(model.rf)
+```
+
+The results above shows relative importance of each variable in helping predicting and classify wine qualities. From the results, alcohol has a higher relative importance of 100%, followed by density with 59.37%, chlorides with 43.36%, and total sulphuric with dioxide with 38.62% and so so. The figure below shows the relative importance of each variable in our model
+
+```{r}
+plot(varImp(model.rf), main = "Variable Importance for the Random Forest Model")
+```
+
+## Model Three: k-Nearest Neighbors
+```{r}
+trControl <- trainControl(method = "repeatedcv",number = 5,repeats = 10)
+model.knn <- train(rating ~ fixed.acidity+volatile.acidity+citric.acid+residual.sugar+chlorides+free.sulfur.dioxide+total.sulfur.dioxide+density+pH+sulphates+alcohol,
+  data = winequality,
+  method = "knn",
+  tuneLength = 5,
+  trControl = trControl,
+  preProc = c("center", "scale")
+)
+```
+
+### View the Final Model
+```{r}
+model.knn
+```
+
+### Classification Accuracy
+```{r}
+confusionMatrix(predict(model.knn, winequality), 
+                reference=winequality$rating, positive="good")
+```
+
+k-Nearest Neighbors performed slightly better classification and regression tree. However, the model performs slightly poorer in prediction as compared to random forest. From the above algorithm, the k-Nearest Neighbors accuracy is approximately 80% implying that the model correctly predict and classify wine quality in their correct wine qualities 80% of the time. The algorithm has a higher mis-classification error than that of random forest and a lower mis-classification error as compared to classification and regression tress (CART). 
+
+
+```{r}
+varImp(model.knn)
+```
+
+The relative importance of each variable in the classification and prediction of wine quality is as shown above, with free sulfuric dioxide as the overall important variable in the classification and prediction of bad, average and good wine, followed by pH in classifying bad wine, alcohol in classifying average wine quality and pH in classifying good quality wine. This is also indicated in the plot below
+
+```{r}
+plot(varImp(model.knn), main = "Variable Importance for the K-NN Model")
+```
+
+## Model Four: Naive Bayes
+```{r}
+trControl <- trainControl(method = "repeatedcv",number = 5,repeats = 10)
+model.nb <- train(rating ~ fixed.acidity+volatile.acidity+citric.acid+residual.sugar+chlorides+free.sulfur.dioxide+total.sulfur.dioxide+density+pH+sulphates+alcohol,
+  data = winequality,
+  method = "naive_bayes",
+  tuneLength = 5,
+  trControl = trControl,
+  preProc = c("center", "scale")
+)
+```
+
+### View the Model
+```{r}
+model.nb
+```
+
+### Prediction and Classification Accuracy
+```{r}
+confusionMatrix(predict(model.nb, winequality), 
+                reference=winequality$rating, positive="good")
+```
+
+Similar to the k-nearest neighbors, naive bayes performs slightly poor in the classification and prediction of the wine quality. From the model above,naive bayes correctly predict and classify wine qualities in their respective wine quality categories as either bad, average and good, 77% of the time, which lower as compared to random forest and above that of CART model. 
+
+### Variable Importance
+```{r}
+varImp(model.nb)
+```
+
+The relative importance of each variable in the classification and prediction of wine quality is as shown above, with free sulfuric dioxide as the overall important variable in the classification and prediction of bad 100%), average (100%) and good (100%) wine, followed by pH in classifying bad wine (69.12%), alcohol in classifying average (65.35%) wine quality and pH in classifying good quality wine (69.12%). This is also indicated in the plot below
+
+```{r}
+plot(varImp(model.nb), main = "Variable for the Naive Bayes Model")
+```
+
+## Model Five: Support Vector Machine (SVM)
+```{r}
+trControl <- trainControl(method = "repeatedcv",number = 5,repeats = 10)
+model.svm <- train(rating ~ fixed.acidity+volatile.acidity+citric.acid+residual.sugar+chlorides+free.sulfur.dioxide+total.sulfur.dioxide+density+pH+sulphates+alcohol,
+  data = winequality,
+  method = "svmLinear",
+  tuneLength = 5,
+  trControl = trControl,
+  preProc = c("center", "scale")
+)
+```
+
+### View the Model
+```{r}
+model.svm
+```
+
+### Prediction and Classification Accuracy
+```{r}
+confusionMatrix(predict(model.svm, winequality), 
+                reference=winequality$rating, positive="good")
+```
+
+The support vector machine model estimated above shows that the model has an accuracy of approximately 75.33%. This shows that the model correctly classifies the wine qualities into their respective qualities (bad, average and good), 78.67% of the time with a relatively higher mis-classification error of approximately 24.67%
+
+### Variable Importance
+```{r}
+varImp(model.svm)
+```
+
+free sulfuric dioxide has 100% importance in classifying and predicting bad quality wine and 100% importance in classifying and predicting average quality wine and finally 98.33% importance in classifying and predicting good quality. On the other hand, pH has 69.12% importance in classifying bad quality wine, 52% importance in classifying average quality wine and 60.12% importance in classifying good quality wine. The remaining variables and their importance in classifying wine qualities into their respective wine quality categories is as shown in the table above. Besides, the results can be visualized as shown below. 
+
+```{r}
+plot(varImp(model.svm), main = "Variable Importance for Support Vector Machine")
+```
+
+
+
+

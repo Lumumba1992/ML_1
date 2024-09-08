@@ -1,0 +1,347 @@
+---
+title: Modeling and Predicting the Occurrence of Diabetes using Machine Learning Algorithm
+  for Classification
+author: ''
+date: "`r Sys.Date()`"
+output:
+  word_document: default
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, comment = NA, warning = FALSE, message = FALSE,
+                      fig.height = 5, fig.width = 7)
+```
+
+\newpage
+# Modeling and predicting diabetes
+## Introduction
+Diabetes is among the current chronic condition posing danger globally. Detecting and doing an early intervention is appropriate for for managing the condition. Modeling and predicting the likelihood of one having this chronic condition will be helpful in the medical and healthcare facilities. There exist various approaches for modeling and predicting diabetes condition including but not limited to binary logistic regression analysis. However, in the recent times, machines learning algorithms for classification have proved to be the overall the best approach of modeling and predicting diabetes occurrence cases. In this paper Machine Learning (ML) algorithms for classification are utilized to model and predict the occurrence of this chronic condition based on the characteristic of patients. The secondary data used in this study is the electronic health records obtained from kaggles website (https://www.kaggle.com/datasets/iammustafatz/diabetes-prediction-dataset).
+
+## Description of the Electronic Data used
+Electronic Health Records (EHRs) are the primary source of data for the Diabetes Prediction dataset (Mustafa, 2023). EHRs are digital versions of patient health records that contain information about their medical history, diagnosis, treatment, and outcomes. The data in EHRs is collected and stored by healthcare providers, such as hospitals and clinics, as part of their routine clinical practice (Mustafa, 2023). The variables in this study include gender, age, hypertension, heart disease, smoking history, BMI, HBA1C level, blood glucose level, and the response variable is the occurrence of diabetes. 
+
+## Objectives
+This study is guided by the following objectives
+* To evaluate the performance of various machine learning algorithms, which include Naive Bayes, k-Nearest Neighbors (kNN), Hierachical clustering and K-Means Clustering
+
+* Assessing the effectiveness of the developed models
+
+* Predicting the occurrence of the diabetes using the best overall model. 
+
+## Methodology
+This study employed the use of secondary data obtained from Kaggle website. The used comprised the demographic information as well as the clinical data of patients. These information include age, gender, BMI, heart disease, blood sugar level, hypertension and diabetes status. 
+The machine learning applied in this study include the following; 
+
+* Classification and Regression Tree (CART): CART is a decision tree algorithm that recursively splits the data into subsets based on the value of predictor variables. At each step, it chooses the variable that best splits the data, resulting in a tree-like structure where the leaves represent the predicted outcome.
+
+* Random Forest: Random Forest is an ensemble machine learning method constructed from various decision trees to create one classification and prediction algorithm. 
+
+* k-Nearest Neighbors: This algorithm is a non-parametric machine learning algorithm thta classifies an individual based on the k-Nearest neighbors. 
+
+* Support Vector Machine (SVM): SVM is a supervised learning algorithm used for classification and regression tasks. It works by finding the hyper-plane that best separates the classes in the feature space. Using this algorithm, three kernels options are always specified, that is Sigmoid, Linear and Polynomial, however, in many instance, linear kernel has always outperformed the sigmoid and polynomial kernel. 
+
+* Naive Bayes Classifier: This is based on Bayes' theorem to classify individual, holding the assumption that feature are independent
+
+
+## Results
+### Load the Required Libraries
+```{r echo=FALSE}
+library(ISLR2)
+library(MASS)
+library(caret)
+library(splines)
+library(pROC)
+library(rattle)
+library(recipes)
+library(lava)
+library(sjmisc)
+library(igraph)
+library(e1071)
+library(hardhat)
+library(ipred)
+library(caret)
+library(sjPlot)
+library(nnet)
+library(wakefield)
+library(kknn)
+library(dplyr)
+library(nnet)
+library(caTools)
+library(ROCR)
+library(stargazer)
+library(dplyr)
+library(nnet)
+library(caTools)
+library(ROCR)
+library(stargazer)
+library(ISLR)
+library(ISLR2)
+library(MASS)
+library(splines)
+library(splines2)
+library(pROC)
+library(ISLR)
+library(ISLR2)
+library(MASS)
+library(splines)
+library(splines2)
+library(pROC)
+library(randomForest)
+library(rpart)
+library(rpart.plot)
+library(rattle)
+library(ISLR2)
+library(MASS)
+library(splines)
+library(pROC)
+library(rattle)
+library(rpart)
+library(party)
+library(partykit)
+library(ggplot2)
+library(tune)
+library(TunePareto)
+library(ISLR2)
+library(MASS)
+library(caret)
+library(splines)
+library(pROC)
+library(rattle)
+library(ggplot2)
+library(devtools)
+library(predict3d)
+library(psych)
+library(dplyr)
+library(gtsummary)
+library(DescTools)
+library(nortest) 
+library(lmtest)
+library(sandwich)
+library(sjmisc)
+library(ggplot2)
+library(stargazer)
+```
+
+### Load the Data
+```{r}
+set.seed(1234)
+diabetes_data <- read.csv("diabetes_prediction_dataset.csv")
+attach(diabetes_data)
+head(diabetes_data,5)
+```
+
+### Summary Statistics
+```{r}
+options(scipen = 999)
+knitr::kable(
+  describeBy(diabetes_data[c(-1,-5)]) %>% round(2) 
+)
+```
+
+The mean age of the participants was 41.89 years (SD = 22.52), with a range from 0.08 to 80.00 years. On the other hand, prevalence of hypertension was 0.07 (SD = 0.26), while heart disease was reported in 0.04 (SD = 0.19) of the cases. The mean body mass index (BMI) was 27.32 (SD = 6.64), ranging from 10.01 to 95.69. HbA1c levels averaged at 5.53 (SD = 1.07), with values ranging from 3.50 to 9.00. Blood glucose levels had a mean of 138.06 (SD = 40.71), with a wide range from 80.00 to 300.00. The prevalence of diabetes was 0.09 (SD = 0.28), indicating a relatively low frequency in the sample.
+
+# Model Estimation
+## Model One: Classification and Regression Tree (CART) Model
+```{r}
+set.seed(1234)
+diabetes_data$gender <- as.factor(diabetes_data$gender)
+diabetes_data$smoking_history <- as.factor(diabetes_data$smoking_history)
+diabetes_data$diabetes <- factor(diabetes_data$diabetes, levels = c(0,1),
+                                 labels = c("No", "Yes"))
+head(diabetes_data,10)
+```
+
+### Take a sample of 300 observations for easier code execusion
+```{r}
+set.seed(1234)
+sample_size <- 300
+random_indices <- sample(1:nrow(diabetes_data), size = sample_size, replace = FALSE)
+sample <- diabetes_data[random_indices, ]
+head(sample,10)
+```
+
+```{r}
+train_model <- trainControl(method = "repeatedcv", number = 5, repeats=10)
+
+model.cart2 <- train( diabetes ~ gender + age + hypertension + heart_disease + smoking_history + bmi + HbA1c_level + blood_glucose_level,
+  data = sample,
+  method = "rpart",
+  trControl = train_model)
+```
+
+### Model Summary
+```{r}
+model.cart2
+```
+
+### Confusion Matrix
+```{r}
+confusionMatrix(predict(model.cart2, sample), 
+                reference=sample$diabetes, positive="Yes")
+```
+
+The classification and regression model estimated shows that the model has an accuracy of approximately 94.67%. This shows that the model classifies the respondents correctly into their respective categories as either (0 or 1), 94.67% of the time. 
+
+### Variable Importance
+```{r}
+varImp(model.cart2)
+```
+
+The results shows the most important and significant variable in the classification and regression trees model developed are HbA1c_level, bmi, blood glucose level, and so on. From the results, age is 100% important to be in our model, followed by HbA1c_level with 91.72%, bmi with 91.58%, blood glucose level with 64.97%, and hypertension with 47.19%. The remaining variable have no significance contribution to be in our model. Consider the plot below. 
+
+### Plot the Variable Importance
+```{r}
+plot(varImp(model.cart2))
+```
+
+## Model Two: Random Forest
+```{r}
+model.rf2 <- train(
+ diabetes ~ gender + age + hypertension + heart_disease + smoking_history + bmi + HbA1c_level + blood_glucose_level,
+  data = sample,
+  method = "rf",
+  trControl = train_model)
+model.rf2
+```
+
+
+### Confusion Matrix
+```{r}
+confusionMatrix(predict(model.rf2, sample), 
+                reference=sample$diabetes, positive="Yes")
+```
+
+The random forest model developed shows that the model has an accuracy of approximately 100%. This shows that the model classifies the respondents correctly into their respective categories as either (0 or 1), 100% of the time. 
+
+### Obtain variable importance
+```{r}
+varImp(model.rf2)
+```
+
+This algorithm give slightly different results from what we saw earlier. All the variable in the algorithm have some level of importance being in our model. For instance, HbA1c_level comprise 100% followed by blood glucose level with 89.59%, bmi with 54.95%, age with 32.48% and so on. Consider the plot below to aid in the visualization
+
+```{r}
+plot(varImp(model.rf2), main = "Variable Importance for the Random Forest Model")
+```
+
+## Model Three: k-Nearest Neighbors
+```{r}
+trControl <- trainControl(method = "repeatedcv",number = 5,repeats = 10)
+model.knn2 <- train(diabetes ~ gender + age + hypertension + heart_disease + smoking_history + bmi + HbA1c_level + blood_glucose_level,
+  data = sample,
+  method = "knn",
+  tuneLength = 5,
+  trControl = trControl,
+  preProc = c("center", "scale")
+)
+```
+
+### View the Final Model
+```{r}
+model.knn2
+```
+
+### Classification Accuracy
+```{r}
+confusionMatrix(predict(model.knn2, sample), 
+                reference=sample$diabetes, positive="Yes")
+```
+
+k-Nearest Neighbors performed slightly poor as compared to the classification and regression tree and k-nearest neighbors as well. From the above algorithm, the classification and prediction accuracy is approximately 92.67% implying that the model correctly predict and classify patients in their correct categories 95.33% of the time. The algorithm has a higher mis-classification error than that of random forest and CART model. 
+
+
+```{r}
+varImp(model.knn2)
+```
+
+The percentage contribution of the each variable to the occurrence of the diabetes is as shown above with HbA1c_level having 100%, followed by age with 65.52%, blood glucose level with 57.07% and so. This is alos indicated in the plot below
+
+```{r}
+plot(varImp(model.knn2), main = "Variable Importance for the K-NN Model")
+```
+
+## Model Four: Naive Bayes
+```{r}
+trControl <- trainControl(method = "repeatedcv",number = 5,repeats = 10)
+model.nb2 <- train(diabetes ~ gender + age + hypertension + heart_disease + smoking_history + bmi + HbA1c_level + blood_glucose_level,
+  data = sample,
+  method = "naive_bayes",
+  tuneLength = 5,
+  trControl = trControl,
+  preProc = c("center", "scale")
+)
+```
+
+### View the Model
+```{r}
+model.nb2
+```
+
+### Prediction and Classification Accuracy
+```{r}
+confusionMatrix(predict(model.nb2, sample), 
+                reference=sample$diabetes, positive="Yes")
+```
+
+Similar to the k-nearest neighbors, naive bayes performs slightly poor in the classification and prediction of the occurrence of diabetes. From the model above,naive bayes correctly predict and classify patients in their respective categories as either having diabetes or not having, 91.00% of the time, which lower as compared to random forest and CART model. 
+
+### Variable Importance
+```{r}
+varImp(model.nb2)
+```
+
+Naive bayes give resuls simialar to that of k-NN. The percentage contribution of the each variable to the occurrence of the diabetes is as shown above with HbA1c_level having 100%, followed by age with 65.52%, blood glucose level with 57.07% and so. These results can be visualized as shown below
+
+```{r}
+plot(varImp(model.nb2), main = "Variable for the Naive Bayes Model")
+```
+
+
+
+
+## Model Five: Support Vector Machine (SVM)
+```{r}
+trControl <- trainControl(method = "repeatedcv",number = 5,repeats = 10)
+model.svm2 <- train(diabetes ~ gender + age + hypertension + heart_disease + smoking_history + bmi + HbA1c_level + blood_glucose_level,
+  data = sample,
+  method = "svmLinear",
+  tuneLength = 5,
+  trControl = trControl,
+  preProc = c("center", "scale")
+)
+```
+
+### View the Model
+```{r}
+model.svm2
+```
+
+### Prediction and Classification Accuracy
+```{r}
+confusionMatrix(predict(model.svm2, sample), 
+                reference=sample$diabetes, positive="Yes")
+```
+
+Support vector machine performed than all the other three models except random, with provides 100% prediction and classification accuracy. The support vector machine model estimated above has a classification and prediction of 97.00%. These results implies that the algorithm classifies patients in the correct categories (0 or 1) 97.00% of the time with only 3% chances of making a mis-classification error. 
+
+### Variable Importance
+```{r}
+varImp(model.svm2)
+plot(varImp(model.svm2), main = "Variable Importance for Support Vector Machine")
+```
+
+HbA1c_level has 100% in our model followed by age with 65.52%, blood glucose level with 57.07% and bmi with 39.19% and so on. From the results above, in either model, smoking has significant importance in predicting and occurrence of diabetes. 
+
+### Compare the various machine learning models
+In comparing the five models, Random Forest outperforms the others with the highest accuracy of 100% and perfect agreement (Kappa = 1.000). It also achieves perfect sensitivity and specificity, indicating its exceptional ability to classify both positive and negative instances accurately. Support Vector Machine (SVM) follows closely with an accuracy of 97.00% and the highest Kappa value of 0.8258, suggesting substantial agreement beyond chance. However, SVM's sensitivity is lower compared to Random Forest. k-Nearest Neighbors and Classification and Regression Trees also perform well but have lower sensitivity values compared to Random Forest and SVM. Naïve Bayes exhibits the lowest performance overall with the lowest accuracy, Kappa, and sensitivity values among the models.
+
+
+## Reference
+Mustafa, M. (2023). Diabetes prediction dataset. Kaggle.com. https://www.kaggle.com/datasets/iammustafatz/diabetes-prediction-dataset
+
+
+
+
+
